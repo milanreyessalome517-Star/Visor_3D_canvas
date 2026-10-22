@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cubo 3D - Eder Dionisio</title>
+<style>
+  :root { --fondo:#0e1a2b; --linea:#5ef2d6; --punto:#ffd166; --texto:#e8eef7; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    background: var(--fondo); color: var(--texto);
+    font-family: Georgia, "Times New Roman", serif; text-align: center;
+  }
+  h1 { font-size: 1.8rem; margin: 0 0 .25rem; font-weight: normal; }
+  p { margin: 0 0 1rem; opacity: .75; }
+  canvas { max-width: 100%; touch-action: none; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Cubo 3D en canvas</h1>
+    <p>Arrastra con el mouse para girarlo.</p>
+    <canvas id="lienzo" width="420" height="420"></canvas>
+  </main>
+
+<script>
+  const c = document.getElementById("lienzo");
+  const ctx = c.getContext("2d");
+
+  // 8 vértices de un cubo y las 12 aristas que los unen
+  const v = [];
+  for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) v.push([x, y, z]);
+  const aristas = [];
+  for (let i = 0; i < 8; i++)
+    for (let j = i + 1; j < 8; j++) {
+      const d = v[i].filter((n, k) => n !== v[j][k]).length;
+      if (d === 1) aristas.push([i, j]);
+    }
+
+  let ax = 0.5, ay = 0.7, arrastrando = false, px = 0, py = 0;
+
+  function rotar([x, y, z]) {
+    let t = y * Math.cos(ax) - z * Math.sin(ax);
+    z = y * Math.sin(ax) + z * Math.cos(ax); y = t;
+    t = x * Math.cos(ay) + z * Math.sin(ay);
+    z = -x * Math.sin(ay) + z * Math.cos(ay); x = t;
+    return [x, y, z];
+  }
+
+  function proyectar([x, y, z]) {
+    const f = 3.5 / (3.5 + z);           // perspectiva
+    return [c.width / 2 + x * 110 * f, c.height / 2 + y * 110 * f];
+  }
+
+  function dibujar() {
+    ctx.clearRect(0, 0, c.width, c.height);
+    const p = v.map(rotar).map(proyectar);
+    ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue("--linea") || "#5ef2d6";
+    ctx.strokeStyle = "#5ef2d6"; ctx.lineWidth = 2;
+    for (const [i, j] of aristas) {
+      ctx.beginPath(); ctx.moveTo(...p[i]); ctx.lineTo(...p[j]); ctx.stroke();
+    }
+    ctx.fillStyle = "#ffd166";
+    for (const [x, y] of p) { ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill(); }
+  }
+
+  function animar() {
+    if (!arrastrando) { ay += 0.01; ax += 0.004; }
+    dibujar();
+    requestAnimationFrame(animar);
+  }
+
+  c.addEventListener("pointerdown", e => { arrastrando = true; px = e.clientX; py = e.clientY; c.setPointerCapture(e.pointerId); });
+  c.addEventListener("pointerup", () => arrastrando = false);
+  c.addEventListener("pointermove", e => {
+    if (!arrastrando) return;
+    ay += (e.clientX - px) * 0.01; ax += (e.clientY - py) * 0.01;
+    px = e.clientX; py = e.clientY;
+  });
+
+  animar();
+</script>
+</body>
+</html>

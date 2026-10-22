@@ -1,0 +1,173 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Triángulo 3D Neón</title>
+
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #080816;
+            color: #00ffcc;
+            font-family: Arial, sans-serif;
+        }
+
+        h1 {
+            text-shadow: 0 0 10px #00ffcc,
+                         0 0 25px #00ffcc;
+        }
+
+        canvas {
+            width: 600px;
+            max-width: 95vw;
+            height: auto;
+            background: #0c1025;
+            border: 2px solid #00ffcc;
+            box-shadow: 0 0 15px #00ffcc;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Triángulo 3D Neón</h1>
+
+    <canvas id="lienzo" width="600" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById("lienzo");
+        const context = canvas.getContext("2d");
+
+        let angulo = 0;
+        let posY = 0;
+        let velocidadY = 2;
+
+        // Vértices de dos triángulos que forman un prisma triangular
+        const vertices = [
+            { x: -1.2, y: -1, z: -0.8 },
+            { x:  1.2, y: -1, z: -0.8 },
+            { x:  0,   y:  1, z: -0.8 },
+
+            { x: -1.2, y: -1, z:  0.8 },
+            { x:  1.2, y: -1, z:  0.8 },
+            { x:  0,   y:  1, z:  0.8 }
+        ];
+
+        // Aristas del prisma triangular
+        const aristas = [
+            [0, 1], [1, 2], [2, 0],
+            [3, 4], [4, 5], [5, 3],
+            [0, 3], [1, 4], [2, 5]
+        ];
+
+        // Rotación sobre el eje Y
+        function rotarY(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+
+            return {
+                x: p.x * cos + p.z * sin,
+                y: p.y,
+                z: -p.x * sin + p.z * cos
+            };
+        }
+
+        // Rotación sobre el eje X
+        function rotarX(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+
+            return {
+                x: p.x,
+                y: p.y * cos - p.z * sin,
+                z: p.y * sin + p.z * cos
+            };
+        }
+
+        // Proyección 3D a 2D
+        function proyectar(p) {
+            const distancia = 5;
+            const zoom = 220;
+            const z = p.z + distancia;
+
+            return {
+                x: (p.x / z) * zoom + canvas.width / 2,
+                y: (-p.y / z) * zoom + canvas.height / 2
+            };
+        }
+
+        function dibujar() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Movimiento de rebote vertical
+            posY += velocidadY;
+
+            if (posY > 80 || posY < -80) {
+                velocidadY *= -1;
+            }
+
+            const puntos = [];
+
+            // Rotar y proyectar los vértices
+            for (let i = 0; i < vertices.length; i++) {
+                let p = rotarY(vertices[i], angulo);
+                p = rotarX(p, angulo * 0.5);
+
+                puntos.push(proyectar({
+                    x: p.x,
+                    y: p.y + posY / 100,
+                    z: p.z
+                }));
+            }
+
+            // Dibujar las aristas con efecto neón
+            context.strokeStyle = "#00ffcc";
+            context.lineWidth = 3;
+            context.shadowColor = "#00ffcc";
+            context.shadowBlur = 15;
+
+            for (let i = 0; i < aristas.length; i++) {
+                const a = puntos[aristas[i][0]];
+                const b = puntos[aristas[i][1]];
+
+                context.beginPath();
+                context.moveTo(a.x, a.y);
+                context.lineTo(b.x, b.y);
+                context.stroke();
+            }
+
+            // Dibujar vértices en magenta
+            context.fillStyle = "#ff00ff";
+            context.shadowColor = "#ff00ff";
+            context.shadowBlur = 18;
+
+            for (let i = 0; i < puntos.length; i++) {
+                context.beginPath();
+                context.arc(
+                    puntos[i].x,
+                    puntos[i].y,
+                    5,
+                    0,
+                    Math.PI * 2
+                );
+                context.fill();
+            }
+
+            context.shadowBlur = 0;
+
+            // Actualizar rotación
+            angulo += 0.015;
+
+            requestAnimationFrame(dibujar);
+        }
+
+        dibujar();
+    </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hexágono 3D</title>
+</head>
+
+<body>
+    <div>
+        <h1>Hexágono 3D</h1>
+    </div>
+
+    <canvas id="lienzo" width="600" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById("lienzo");
+        const context = canvas.getContext("2d");
+        let angulo = 0;
+
+        const vertices = [
+            // Hexágono frontal
+            { x: 1, y: 0, z: 0.7 },
+            { x: 0.5, y: 0.866, z: 0.7 },
+            { x: -0.5, y: 0.866, z: 0.7 },
+            { x: -1, y: 0, z: 0.7 },
+            { x: -0.5, y: -0.866, z: 0.7 },
+            { x: 0.5, y: -0.866, z: 0.7 },
+
+            // Hexágono trasero
+            { x: 1, y: 0, z: -0.7 },
+            { x: 0.5, y: 0.866, z: -0.7 },
+            { x: -0.5, y: 0.866, z: -0.7 },
+            { x: -1, y: 0, z: -0.7 },
+            { x: -0.5, y: -0.866, z: -0.7 },
+            { x: 0.5, y: -0.866, z: -0.7 }
+        ];
+
+        const aristas = [
+            // Aristas del hexágono frontal
+            [0, 1], [1, 2], [2, 3],
+            [3, 4], [4, 5], [5, 0],
+
+            // Aristas del hexágono trasero
+            [6, 7], [7, 8], [8, 9],
+            [9, 10], [10, 11], [11, 6],
+
+            // Uniones que dan profundidad
+            [0, 6], [1, 7], [2, 8],
+            [3, 9], [4, 10], [5, 11]
+        ];
+
+        function rotarY(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+
+            return {
+                x: p.x * cos + p.z * sin,
+                y: p.y,
+                z: -p.x * sin + p.z * cos
+            };
+        }
+
+        function rotarX(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+
+            return {
+                x: p.x,
+                y: p.y * cos - p.z * sin,
+                z: p.y * sin + p.z * cos
+            };
+        }
+
+        function proyectar(p) {
+            const distancia = 4;
+            const zoom = 250;
+            const z = p.z + distancia;
+
+            const x2d = (p.x / z) * zoom + canvas.width / 2;
+            const y2d = (-p.y / z) * zoom + canvas.height / 2;
+
+            return { x: x2d, y: y2d };
+        }
+
+        function dibujar() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            const puntos = [];
+
+            for (let i = 0; i < vertices.length; i++) {
+                let p = rotarY(vertices[i], angulo);
+                p = rotarX(p, angulo * 0.5);
+
+                puntos.push(proyectar(p));
+            }
+
+            context.strokeStyle = "#00ffcc";
+            context.lineWidth = 2;
+
+            for (let i = 0; i < aristas.length; i++) {
+                const a = puntos[aristas[i][0]];
+                const b = puntos[aristas[i][1]];
+
+                context.beginPath();
+                context.moveTo(a.x, a.y);
+                context.lineTo(b.x, b.y);
+                context.stroke();
+            }
+
+            context.fillStyle = "#ff0066";
+
+            for (let i = 0; i < puntos.length; i++) {
+                context.beginPath();
+                context.arc(
+                    puntos[i].x,
+                    puntos[i].y,
+                    5,
+                    0,
+                    Math.PI * 2
+                );
+                context.fill();
+            }
+
+            angulo += 0.01;
+            requestAnimationFrame(dibujar);
+        }
+
+        dibujar();
+    </script>
+</body>
+
+</html>

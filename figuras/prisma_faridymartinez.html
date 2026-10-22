@@ -1,0 +1,150 @@
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prisma 3D</title>
+
+    <style>
+        body {
+            background-color: #1a1a2e;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        canvas {
+            background-color: #0d1d47;
+            border: 2px solid #00ffcc;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div>
+        <h1>Prisma rectangular 3D</h1>
+        <p>Modelo tridimensional en rotación</p>
+    </div>
+
+    <canvas id="lienzo" width="600" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById("lienzo");
+        const context = canvas.getContext("2d");
+
+        let angulo = 0;
+
+        // Vértices del prisma rectangular
+        const vertices = [
+            { x: -1,   y: -2, z: -1 },
+            { x:  1,   y: -2, z: -1 },
+            { x:  1,   y:  2, z: -1 },
+            { x: -1,   y:  2, z: -1 },
+
+            { x: -1,   y: -2, z:  1 },
+            { x:  1,   y: -2, z:  1 },
+            { x:  1,   y:  2, z:  1 },
+            { x: -1,   y:  2, z:  1 }
+        ];
+
+        // Aristas que conectan los vértices
+        const aristas = [
+            [0, 1], [1, 2], [2, 3], [3, 0],
+            [4, 5], [5, 6], [6, 7], [7, 4],
+            [0, 4], [1, 5], [2, 6], [3, 7]
+        ];
+
+        // Rotación sobre el eje Y
+        function rotarY(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+
+            return {
+                x: p.x * cos + p.z * sin,
+                y: p.y,
+                z: -p.x * sin + p.z * cos
+            };
+        }
+
+        // Rotación sobre el eje X
+        function rotarX(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+
+            return {
+                x: p.x,
+                y: p.y * cos - p.z * sin,
+                z: p.y * sin + p.z * cos
+            };
+        }
+
+        // Proyección de 3D a 2D
+        function proyectar(p) {
+            const distancia = 6;
+            const zoom = 250;
+            const z = p.z + distancia;
+
+            return {
+                x: (p.x / z) * zoom + canvas.width / 2,
+                y: (-p.y / z) * zoom + canvas.height / 2
+            };
+        }
+
+        // Dibujar el prisma
+        function dibujar() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            const puntos = [];
+
+            // Rotar y proyectar los vértices
+            for (let i = 0; i < vertices.length; i++) {
+                let p = rotarY(vertices[i], angulo);
+                p = rotarX(p, angulo * 0.5);
+
+                puntos.push(proyectar(p));
+            }
+
+            // Dibujar las aristas
+            context.strokeStyle = "#00ffcc";
+            context.lineWidth = 3;
+
+            for (let i = 0; i < aristas.length; i++) {
+                const a = puntos[aristas[i][0]];
+                const b = puntos[aristas[i][1]];
+
+                context.beginPath();
+                context.moveTo(a.x, a.y);
+                context.lineTo(b.x, b.y);
+                context.stroke();
+            }
+
+            // Dibujar los vértices
+            context.fillStyle = "#ff0066";
+
+            for (let i = 0; i < puntos.length; i++) {
+                context.beginPath();
+                context.arc(
+                    puntos[i].x,
+                    puntos[i].y,
+                    5,
+                    0,
+                    Math.PI * 2
+                );
+                context.fill();
+            }
+
+            // Actualizar el ángulo para crear la animación
+            angulo += 0.01;
+
+            requestAnimationFrame(dibujar);
+        }
+
+        dibujar();
+    </script>
+
+</body>
+</html>

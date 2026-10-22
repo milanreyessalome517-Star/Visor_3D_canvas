@@ -1,0 +1,118 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Estrella 3D</title>
+</head>
+
+<body style="background:#101020; text-align:center;">
+
+    <h1 style="color:#00ffcc;">ESTRELLA FREDDY 3D</h1>
+
+    <canvas id="lienzo" width="600" height="600"
+        style="border:1px solid white;">
+    </canvas>
+
+    <script>
+        const canvas = document.getElementById("lienzo");
+        const context = canvas.getContext("2d");
+
+        let angulo = 0;
+
+        const vertices = [];
+
+        // Crear las dos caras de la estrella
+        for (let z of [-1, 1]) {
+            for (let i = 0; i < 10; i++) {
+                const radio = i % 2 === 0 ? 1.5 : 0.65;
+                const a = i * Math.PI / 5 - Math.PI / 2;
+
+                vertices.push({
+                    x: Math.cos(a) * radio,
+                    y: Math.sin(a) * radio,
+                    z: z
+                });
+            }
+        }
+
+        const aristas = [];
+
+        for (let i = 0; i < 10; i++) {
+            aristas.push([i, (i + 1) % 10]);
+            aristas.push([i + 10, ((i + 1) % 10) + 10]);
+            aristas.push([i, i + 10]);
+        }
+
+        function rotarY(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+
+            return {
+                x: p.x * cos + p.z * sin,
+                y: p.y,
+                z: -p.x * sin + p.z * cos
+            };
+        }
+
+        function rotarX(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+
+            return {
+                x: p.x,
+                y: p.y * cos - p.z * sin,
+                z: p.y * sin + p.z * cos
+            };
+        }
+
+        function proyectar(p) {
+            const distancia = 5;
+            const z = p.z + distancia;
+            const zoom = 220;
+
+            return {
+                x: (p.x / z) * zoom + 300,
+                y: (-p.y / z) * zoom + 300
+            };
+        }
+
+        function dibujar() {
+            context.clearRect(0, 0, 600, 600);
+
+            const puntos = vertices.map(v => {
+                let p = rotarY(v, angulo);
+                p = rotarX(p, angulo * 0.5);
+                return proyectar(p);
+            });
+
+            context.strokeStyle = "#00ffcc";
+            context.lineWidth = 3;
+
+            for (const arista of aristas) {
+                const a = puntos[arista[0]];
+                const b = puntos[arista[1]];
+
+                context.beginPath();
+                context.moveTo(a.x, a.y);
+                context.lineTo(b.x, b.y);
+                context.stroke();
+            }
+
+            context.fillStyle = "#ff0066";
+
+            for (const p of puntos) {
+                context.beginPath();
+                context.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                context.fill();
+            }
+
+            angulo += 0.02;
+            requestAnimationFrame(dibujar);
+        }
+
+        dibujar();
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pirámide hexagonal</title>
+</head>
+
+<body>
+    <div>
+        <h1>Pirámide hexagonal</h1>
+    </div>
+
+    <canvas id="lienzo" width="600" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById("lienzo");
+        const context = canvas.getContext("2d");
+        let angulo = 0;
+
+        const vertices = [
+            { x:  1,   y: -1, z:  0 },      // 0 base
+            { x:  0.5, y: -1, z:  0.866 },  // 1 base
+            { x: -0.5, y: -1, z:  0.866 },  // 2 base
+            { x: -1,   y: -1, z:  0 },      // 3 base
+            { x: -0.5, y: -1, z: -0.866 },  // 4 base
+            { x:  0.5, y: -1, z: -0.866 },  // 5 base
+            { x:  0,   y:  1, z:  0 },      // 6 punta
+        ];
+
+        const aristas = [
+            [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0],  // hexágono de la base
+            [0, 6], [1, 6], [2, 6], [3, 6], [4, 6], [5, 6]   // de cada esquina a la punta
+        ];
+
+        function rotarY(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+            return { x: p.x * cos + p.z * sin, y: p.y, z: -p.x * sin + p.z * cos };
+        }
+
+        function rotarX(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+            return { x: p.x, y: p.y * cos - p.z * sin, z: p.y * sin + p.z * cos };
+        }
+
+        function proyectar(p) {
+            const distancia = 4;
+            const zoom = 300;
+            const z = p.z + distancia;
+            const x2d = (p.x / z) * zoom + canvas.width / 2;
+            const y2d = (-p.y / z) * zoom + canvas.height / 2;
+            return { x: x2d, y: y2d };
+        }
+
+        function dibujar() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            const puntos = [];
+            for (let i = 0; i < vertices.length; i++) {
+                let p = rotarY(vertices[i], angulo);
+                p = rotarX(p, angulo * 0.5);
+                puntos.push(proyectar(p));
+            }
+
+            context.strokeStyle = "#00ffcc";
+            context.lineWidth = 2;
+            for (let i = 0; i < aristas.length; i++) {
+                const a = puntos[aristas[i][0]];
+                const b = puntos[aristas[i][1]];
+                context.beginPath();
+                context.moveTo(a.x, a.y);
+                context.lineTo(b.x, b.y);
+                context.stroke();
+            }
+
+            context.fillStyle = "#ff0066";
+            for (let i = 0; i < puntos.length; i++) {
+                context.beginPath();
+                context.arc(puntos[i].x, puntos[i].y, 5, 0, Math.PI * 2);
+                context.fill();
+            }
+
+            angulo += 0.01;
+            requestAnimationFrame(dibujar);
+        }
+
+        dibujar();
+    </script>
+</body>
+
+</html>

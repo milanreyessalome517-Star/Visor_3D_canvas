@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cilindro 3D</title>
+  <style>
+    :root {
+      --bg1: #071421;
+      --bg2: #0b1d2d;
+      --panel: rgba(255, 255, 255, 0.04);
+      --line: rgba(255, 255, 255, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 20%, #15324a 0%, var(--bg2) 35%, var(--bg1) 100%);
+      font-family: Arial, Helvetica, sans-serif;
+      color: white;
+    }
+
+    .frame {
+      position: relative;
+      width: min(90vw, 900px);
+      height: min(70vh, 600px);
+      border-radius: 24px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--line);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), inset 0 0 18px rgba(255,255,255,0.04);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <canvas id="cylCanvas" width="900" height="600"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('cylCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = 120;
+    const height = 220;
+    const segments = 28;
+    let angle = 0;
+
+    function rotateY(point, a) {
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      return {
+        x: point.x * c + point.z * s,
+        y: point.y,
+        z: -point.x * s + point.z * c
+      };
+    }
+
+    function rotateX(point, a) {
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      return {
+        x: point.x,
+        y: point.y * c - point.z * s,
+        z: point.y * s + point.z * c
+      };
+    }
+
+    function project(point) {
+      const camera = 520;
+      const scale = camera / (camera - point.z);
+      return {
+        x: centerX + point.x * scale,
+        y: centerY + point.y * scale,
+        depth: point.z
+      };
+    }
+
+    function drawPolygon(points, fillStyle, strokeStyle = 'rgba(255,255,255,0.06)') {
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+      ctx.strokeStyle = strokeStyle;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+
+    function drawDisk(points, fillStyle) {
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const topPoints = [];
+      const bottomPoints = [];
+      const sideQuads = [];
+
+      for (let i = 0; i < segments; i++) {
+        const a1 = (Math.PI * 2 * i) / segments;
+        const a2 = (Math.PI * 2 * (i + 1)) / segments;
+
+        const p1Top = { x: Math.cos(a1) * radius, y: -height / 2, z: Math.sin(a1) * radius };
+        const p2Top = { x: Math.cos(a2) * radius, y: -height / 2, z: Math.sin(a2) * radius };
+        const p1Bottom = { x: Math.cos(a1) * radius, y: height / 2, z: Math.sin(a1) * radius };
+        const p2Bottom = { x: Math.cos(a2) * radius, y: height / 2, z: Math.sin(a2) * radius };
+
+        const t1 = project(rotateX(rotateY(p1Top, angle), angle * 0.6));
+        const t2 = project(rotateX(rotateY(p2Top, angle), angle * 0.6));
+        const b1 = project(rotateX(rotateY(p1Bottom, angle), angle * 0.6));
+        const b2 = project(rotateX(rotateY(p2Bottom, angle), angle * 0.6));
+
+        sideQuads.push({
+          points: [t1, t2, b2, b1],
+          depth: (t1.depth + t2.depth + b1.depth + b2.depth) / 4
+        });
+
+        topPoints.push(t1);
+        bottomPoints.push(b1);
+      }
+
+      sideQuads.sort((a, b) => a.depth - b.depth);
+
+      for (let i = 0; i < sideQuads.length; i++) {
+        const q = sideQuads[i];
+        const shade = 34 + (q.depth + 180) / 3;
+        drawPolygon(q.points, `hsl(${205 + q.depth * 0.15}, 72%, ${shade}%)`);
+      }
+
+      const topProjected = topPoints.slice().sort((a, b) => a.depth - b.depth);
+      const bottomProjected = bottomPoints.slice().sort((a, b) => a.depth - b.depth);
+
+      drawDisk(topProjected, 'rgba(99, 168, 255, 0.72)');
+      drawDisk(bottomProjected, 'rgba(31, 72, 117, 0.75)');
+
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.ellipse(centerX, centerY - 5, 124, 42, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(7, 21, 36, 0.65)';
+      ctx.ellipse(centerX, centerY + 105, 124, 46, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      angle += 0.014;
+      requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>

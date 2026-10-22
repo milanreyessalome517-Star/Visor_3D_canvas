@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estrella 3D en Movimiento</title>
+    <!-- Tailwind CSS for modern responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        canvas {
+            touch-action: none;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-between p-4 md:p-6">
+
+    <!-- Header Section -->
+    <header class="w-full max-w-4xl text-center mb-4">
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-amber-400 via-orange-300 to-yellow-400 bg-clip-text text-transparent">
+            Estrella 3D en Movimiento
+        </h1>
+        <p class="text-slate-400 text-sm mt-1">Rotación 3D y traslación horizontal en HTML5 Canvas</p>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-6 items-center bg-slate-900/60 border border-slate-800 p-4 md:p-6 rounded-2xl shadow-2xl backdrop-blur-md">
+        
+        <!-- Controls Panel -->
+        <div class="flex flex-col gap-5 md:col-span-1 bg-slate-950/50 p-4 rounded-xl border border-slate-800/80">
+            <!-- Controls: Speed Slider -->
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label for="speed-slider" class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Velocidad de Giro</label>
+                    <span id="speed-value" class="text-xs text-amber-400 font-mono">1.0x</span>
+                </div>
+                <input id="speed-slider" type="range" min="0" max="3" step="0.1" value="1" class="w-full accent-amber-400 bg-slate-800 rounded-lg h-2 cursor-pointer">
+            </div>
+
+            <!-- Controls: Movement Speed Slider -->
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label for="move-slider" class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Velocidad de Movimiento</label>
+                    <span id="move-value" class="text-xs text-amber-400 font-mono">1.0x</span>
+                </div>
+                <input id="move-slider" type="range" min="0" max="3" step="0.1" value="1" class="w-full accent-amber-400 bg-slate-800 rounded-lg h-2 cursor-pointer">
+            </div>
+
+            <!-- Interactive Toggle (Pause/Resume) -->
+            <button id="pause-btn" class="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-lg transition-colors border border-slate-700 flex items-center justify-center gap-2">
+                <span>⏸ Pausar / Reanudar</span>
+            </button>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="md:col-span-2 flex flex-col items-center justify-center relative w-full aspect-square bg-slate-950 rounded-xl border border-slate-800/80 overflow-hidden shadow-inner">
+            <canvas id="lienzo" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
+            <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur border border-slate-800 px-3 py-1 rounded-md text-[10px] text-slate-400 pointer-events-none">
+                💡 Arrastra para rotar manualmente
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer Information -->
+    <footer class="w-full max-w-4xl text-center mt-6 text-xs text-slate-500">
+        Basado en tu estructura de proyección 3D &bull; HTML5 Canvas
+    </footer>
+
+    <!-- Script Application Logic -->
+    <script>
+        const canvas = document.getElementById("lienzo");
+        const context = canvas.getContext("2d");
+
+        // Set high-DPI canvas scaling
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            context.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // State variables
+        let anguloX = 0;
+        let anguloY = 0;
+        let velocidadGiro = 1.0;
+        let velocidadMovimiento = 1.0;
+        let isPaused = false;
+        let transX = 0; // Traslación horizontal actual
+        
+        // Manual mouse/touch rotation offsets
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let manualAngleX = 0;
+        let manualAngleY = 0;
+
+        // Generar vértices y aristas de una estrella extruida 3D de 5 puntas
+        function generarEstrella3D() {
+            const vertices = [];
+            const aristas = [];
+            const numPuntas = 5;
+            const radioExterno = 1.2;
+            const radioInterno = 0.5;
+            const profundidad = 0.6; // Mitad de la profundidad en Z
+
+            // 1. Vértices de la base delantera (Z = -profundidad) y trasera (Z = +profundidad)
+            for (let zVal of [-profundidad, profundidad]) {
+                for (let i = 0; i < numPuntas * 2; i++) {
+                    const angulo = (i * Math.PI) / numPuntas;
+                    const r = (i % 2 === 0) ? radioExterno : radioInterno;
+                    vertices.push({
+                        x: Math.cos(angulo) * r,
+                        y: Math.sin(angulo) * r,
+                        z: zVal
+                    });
+                }
+            }
+
+            const totalVerticesFront = numPuntas * 2; // 10 vértices
+
+            // 2. Aristas de la cara delantera
+            for (let i = 0; i < totalVerticesFront; i++) {
+                const siguiente = (i + 1) % totalVerticesFront;
+                aristas.push([i, siguiente]);
+            }
+
+            // 3. Aristas de la cara trasera
+            for (let i = 0; i < totalVerticesFront; i++) {
+                const actual = i + totalVerticesFront;
+                const siguiente = ((i + 1) % totalVerticesFront) + totalVerticesFront;
+                aristas.push([actual, siguiente]);
+            }
+
+            // 4. Aristas que conectan la cara delantera con la trasera (extrusión 3D)
+            for (let i = 0; i < totalVerticesFront; i++) {
+                aristas.push([i, i + totalVerticesFront]);
+            }
+
+            return { vertices, aristas };
+        }
+
+        const estrella = generarEstrella3D();
+
+        // Rotation matrix functions
+        function rotarY(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+            return { x: p.x * cos + p.z * sin, y: p.y, z: -p.x * sin + p.z * cos };
+        }
+
+        function rotarX(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+            return { x: p.x, y: p.y * cos - p.z * sin, z: p.y * sin + p.z * cos };
+        }
+
+        function proyectar(p, offsetX) {
+            const distancia = 4.5;
+            const displayWidth = canvas.clientWidth;
+            const displayHeight = canvas.clientHeight;
+            const zoom = Math.min(displayWidth, displayHeight) * 0.45;
+            
+            const z = p.z + distancia;
+            // Aplicamos la traslación horizontal (offsetX) sumada al centro
+            const x2d = ((p.x + offsetX) / z) * zoom + displayWidth / 2;
+            const y2d = (-p.y / z) * zoom + displayHeight / 2;
+            return { x: x2d, y: y2d };
+        }
+
+        // Main render loop
+        let tiempo = 0;
+        function dibujar() {
+            const displayWidth = canvas.clientWidth;
+            const displayHeight = canvas.clientHeight;
+            context.clearRect(0, 0, displayWidth, displayHeight);
+
+            const puntos = [];
+            const totalAnguloX = anguloX + manualAngleX;
+            const totalAnguloY = anguloY + manualAngleY;
+
+            // Calcular movimiento de lado a lado usando seno (rango ajustable)
+            if (!isPaused) {
+                tiempo += 0.02 * velocidadMovimiento;
+            }
+            transX = Math.sin(tiempo) * 1.5; // Oscila de -1.5 a +1.5 unidades en X
+
+            for (let i = 0; i < estrella.vertices.length; i++) {
+                let p = rotarY(estrella.vertices[i], totalAnguloY);
+                p = rotarX(p, totalAnguloX);
+                puntos.push(proyectar(p, transX));
+            }
+
+            // Draw edges with glowing star colors
+            context.strokeStyle = "#facc15"; // Amarillo brillante
+            context.lineWidth = 2.5;
+            context.lineCap = "round";
+
+            for (let i = 0; i < estrella.aristas.length; i++) {
+                const a = puntos[estrella.aristas[i][0]];
+                const b = puntos[estrella.aristas[i][1]];
+                context.beginPath();
+                context.moveTo(a.x, a.y);
+                context.lineTo(b.x, b.y);
+                context.stroke();
+            }
+
+            // Draw vertices points
+            context.fillStyle = "#fb923c"; // Naranja brillante
+            for (let i = 0; i < puntos.length; i++) {
+                context.beginPath();
+                context.arc(puntos[i].x, puntos[i].y, 4, 0, Math.PI * 2);
+                context.fill();
+            }
+
+            // Increment rotation angles if not paused
+            if (!isPaused) {
+                anguloY += 0.015 * velocidadGiro;
+                anguloX += 0.008 * velocidadGiro;
+            }
+
+            requestAnimationFrame(dibujar);
+        }
+
+        // Event Listeners for UI Controls
+        const speedSlider = document.getElementById('speed-slider');
+        const speedValue = document.getElementById('speed-value');
+        speedSlider.addEventListener('input', (e) => {
+            velocidadGiro = parseFloat(e.target.value);
+            speedValue.textContent = velocidadGiro.toFixed(1) + 'x';
+        });
+
+        const moveSlider = document.getElementById('move-slider');
+        const moveValue = document.getElementById('move-value');
+        moveSlider.addEventListener('input', (e) => {
+            velocidadMovimiento = parseFloat(e.target.value);
+            moveValue.textContent = velocidadMovimiento.toFixed(1) + 'x';
+        });
+
+        const pauseBtn = document.getElementById('pause-btn');
+        pauseBtn.addEventListener('click', () => {
+            isPaused = !isPaused;
+            pauseBtn.innerHTML = isPaused ? '<span>▶ Reanudar</span>' : '<span>⏸ Pausar</span>';
+            pauseBtn.classList.toggle('bg-slate-700', isPaused);
+        });
+
+        // Mouse & Touch Drag Rotation Handling
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            
+            manualAngleY += deltaX * 0.01;
+            manualAngleX += deltaY * 0.01;
+            
+            startX = e.clientX;
+            startY = e.clientY;
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isDragging || e.touches.length !== 1) return;
+            const deltaX = e.touches[0].clientX - startX;
+            const deltaY = e.touches[0].clientY - startY;
+            
+            manualAngleY += deltaX * 0.01;
+            manualAngleX += deltaY * 0.01;
+            
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        });
+
+        window.addEventListener('touchend', () => {
+            isDragging = false;
+        });
+
+        // Initialize animation loop on load
+        window.onload = function() {
+            dibujar();
+        };
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Octaedro 3D</title>
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #ffffff;
+            font-family: sans-serif;
+            text-align: center;
+        }
+        canvas {
+            background-color: #161b22;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <div>
+        <h1>Octaedro 3D (Diamante)</h1>
+    </div>
+
+    <canvas id="lienzo" width="600" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById("lienzo");
+        const context = canvas.getContext("2d");
+        let angulo = 0;
+
+        // 1. DEFINICIÓN DE VÉRTICES (6 puntos)
+        const vertices = [
+            // Los 4 puntos del anillo central (plano X-Y)
+            { x: -1, y: 0, z: -1 }, // 0: Izquierda-atrás
+            { x:  1, y: 0, z: -1 }, // 1: Derecha-atrás
+            { x:  1, y: 0, z:  1 }, // 2: Derecha-frente
+            { x: -1, y: 0, z:  1 }, // 3: Izquierda-frente
+
+            // Las dos puntas (superior e inferior en el eje Y)
+            { x: 0, y:  1.5, z: 0 }, // 4: Punta superior
+            { x: 0, y: -1.5, z: 0 }  // 5: Punta inferior
+        ];
+
+        // 2. DEFINICIÓN DE ARISTAS (12 conexiones)
+        const aristas = [
+            // Anillo central (base)
+            [0, 1], [1, 2], [2, 3], [3, 0],
+
+            // Conexiones hacia la punta superior (punto 4)
+            [0, 4], [1, 4], [2, 4], [3, 4],
+
+            // Conexiones hacia la punta inferior (punto 5)
+            [0, 5], [1, 5], [2, 5], [3, 5]
+        ];
+
+        function rotarY(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+            return { x: p.x * cos + p.z * sin, y: p.y, z: -p.x * sin + p.z * cos };
+        }
+
+        function rotarX(p, a) {
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+            return { x: p.x, y: p.y * cos - p.z * sin, z: p.y * sin + p.z * cos };
+        }
+
+        function proyectar(p) {
+            const distancia = 4;
+            const zoom = 300;
+            const z = p.z + distancia;
+            const x2d = (p.x / z) * zoom + canvas.width / 2;
+            const y2d = (-p.y / z) * zoom + canvas.height / 2;
+            return { x: x2d, y: y2d };
+        }
+
+        function dibujar() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            const puntos = [];
+            for (let i = 0; i < vertices.length; i++) {
+                let p = rotarY(vertices[i], angulo);
+                p = rotarX(p, angulo * 0.6);
+                puntos.push(proyectar(p));
+            }
+
+            // Dibujar las aristas
+            context.strokeStyle = "#76ff03";
+            context.lineWidth = 2;
+            for (let i = 0; i < aristas.length; i++) {
+                const a = puntos[aristas[i][0]];
+                const b = puntos[aristas[i][1]];
+                context.beginPath();
+                context.moveTo(a.x, a.y);
+                context.lineTo(b.x, b.y);
+                context.stroke();
+            }
+
+            // Dibujar los vértices
+            context.fillStyle = "#ff1744";
+            for (let i = 0; i < puntos.length; i++) {
+                context.beginPath();
+                context.arc(puntos[i].x, puntos[i].y, 6, 0, Math.PI * 2);
+                context.fill();
+            }
+
+            angulo += 0.01;
+            requestAnimationFrame(dibujar);
+        }
+
+        dibujar();
+    </script>
+</body>
+
+</html>
