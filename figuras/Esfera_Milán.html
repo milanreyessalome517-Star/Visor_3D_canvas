@@ -1,61 +1,79 @@
-// Dibuja una esfera 3D con malla sobre un canvas 2D.
-class Esfera {
-	constructor(ctx, { x, y, radio = 100, color = "#3498db", lineas = 18 } = {}) {
-		this.ctx = ctx;
-		this.x = x ?? ctx.canvas.width / 2;
-		this.y = y ?? ctx.canvas.height / 2;
-		this.radio = radio;
-		this.color = color;
-		this.lineas = Math.max(4, lineas);
-	}
-
-	dibujar(rotacion = 0) {
-		const ctx = this.ctx;
-		const r = this.radio;
-		ctx.save();
-
-		// Base esférica con iluminación sencilla.
-		const luz = ctx.createRadialGradient(
-			this.x - r * 0.35,
-			this.y - r * 0.4,
-			r * 0.05,
-			this.x,
-			this.y,
-			r
-		);
-		luz.addColorStop(0, "#ffffff");
-		luz.addColorStop(0.18, this.color);
-		luz.addColorStop(1, "#12345a");
-		ctx.beginPath();
-		ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
-		ctx.fillStyle = luz;
-		ctx.fill();
-		ctx.clip();
-
-		ctx.strokeStyle = "rgba(255,255,255,0.65)";
-		ctx.lineWidth = 1;
-
-		// Meridianos, comprimidos según la perspectiva.
-		for (let i = 0; i < this.lineas; i++) {
-			const angulo = (i / this.lineas) * Math.PI + rotacion;
-			const ancho = Math.abs(Math.cos(angulo)) * r;
-			ctx.beginPath();
-			ctx.ellipse(this.x, this.y, Math.max(1, ancho), r, 0, 0, Math.PI * 2);
-			ctx.stroke();
+<!doctype html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Prisma de corazón 3D</title>
+	<style>
+		* { box-sizing: border-box; }
+		body { margin: 0; min-height: 100vh; display: grid; place-items: center; overflow: hidden; color: #fff4f7; background: radial-gradient(ellipse at 50% 42%, #382033, #171321 55%, #0c101b); font-family: system-ui, sans-serif; }
+		main { width: min(900px, 100vw); padding: 24px; text-align: center; }
+		h1 { margin: 0 0 5px; font-size: clamp(1.4rem, 4vw, 2rem); }
+		p { margin: 0 0 12px; color: #d2b8c7; }
+		canvas { display: block; width: 100%; height: min(68vh, 560px); min-height: 330px; cursor: grab; touch-action: none; }
+		canvas:active { cursor: grabbing; }
+		.hint { font-size: .82rem; opacity: .75; }
+	</style>
+</head>
+<body>
+	<main>
+		<h1>Prisma de corazón 3D</h1>
+		<p>Modelo tridimensional giratorio</p>
+		<canvas id="scene" aria-label="Prisma 3D con forma de corazón"></canvas>
+		<p class="hint">Arrastra para girar · Suelta para continuar</p>
+	</main>
+	<script>
+		const canvas = document.querySelector('#scene');
+		const ctx = canvas.getContext('2d');
+		const outline = Array.from({ length: 100 }, (_, i) => {
+			const t = i * Math.PI * 2 / 100;
+			return [16 * Math.sin(t) ** 3 / 18, (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) / 18];
+		});
+		let angle = -.45, tilt = -.12, dragging = false, px = 0, py = 0;
+		const depth = .72;
+		function resize() {
+			const rect = canvas.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+			canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		}
-
-		// Paralelos.
-		for (let i = 1; i < this.lineas; i++) {
-			const latitud = -Math.PI / 2 + (i / this.lineas) * Math.PI;
-			const radioHorizontal = r * Math.cos(latitud);
-			const y = this.y - r * Math.sin(latitud);
-			ctx.beginPath();
-			ctx.ellipse(this.x, y, radioHorizontal, Math.max(1, radioHorizontal * 0.22), 0, 0, Math.PI * 2);
-			ctx.stroke();
+		function draw() {
+			const w = canvas.clientWidth, h = canvas.clientHeight;
+			ctx.clearRect(0, 0, w, h);
+			const scale = Math.min(w / 5.1, h / 3.9);
+			const project = ([x,y,z]) => {
+				const xr = x*Math.cos(angle)-z*Math.sin(angle), zr = x*Math.sin(angle)+z*Math.cos(angle);
+				const yr = y*Math.cos(tilt)-zr*Math.sin(tilt), zz = y*Math.sin(tilt)+zr*Math.cos(tilt);
+				const perspective = 4.8 / (4.8 + zz*.18);
+				return [w/2+xr*scale*perspective, h*.52-yr*scale*perspective, zz];
+			};
+			const front = outline.map(([x,y])=>[x,y,depth/2]);
+			const back = outline.map(([x,y])=>[x,y,-depth/2]);
+			const sides = outline.map((_,i) => {
+				const j=(i+1)%outline.length, pts=[back[i],back[j],front[j],front[i]].map(project);
+				return { pts, z: pts.reduce((sum,p)=>sum+p[2],0)/4, i };
+			}).sort((a,b)=>a.z-b.z);
+			for (const face of sides) {
+				const brightness=.5+.5*Math.sin(angle+face.i*.08), p=face.pts;
+				ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); p.slice(1).forEach(v=>ctx.lineTo(v[0],v[1])); ctx.closePath();
+				ctx.fillStyle=`hsl(${340+brightness*13} ${68+brightness*12}% ${24+brightness*19}%)`; ctx.fill();
+				ctx.strokeStyle='rgba(255,190,214,.2)'; ctx.lineWidth=.7; ctx.stroke();
+			}
+			for (const [vertices,color] of [[back,'#a42351'],[front,'#ff668d']]) {
+				const p=vertices.map(project); ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]);
+				p.slice(1).forEach(v=>ctx.lineTo(v[0],v[1])); ctx.closePath();
+				ctx.fillStyle=color; ctx.fill(); ctx.strokeStyle='#ffc0d2'; ctx.lineWidth=1.5; ctx.stroke();
+			}
+			if (!dragging) angle += .006;
+			requestAnimationFrame(draw);
 		}
-
-		ctx.restore();
-	}
-}
-
-if (typeof module !== "undefined") module.exports = Esfera;
+		canvas.addEventListener('pointerdown', e => { dragging=true; px=e.clientX; py=e.clientY; canvas.setPointerCapture(e.pointerId); });
+		canvas.addEventListener('pointermove', e => {
+			if (!dragging) return;
+			angle+=(e.clientX-px)*.009; tilt=Math.max(-.8,Math.min(.8,tilt+(e.clientY-py)*.006)); px=e.clientX; py=e.clientY;
+		});
+		canvas.addEventListener('pointerup', () => dragging=false);
+		canvas.addEventListener('pointercancel', () => dragging=false);
+		addEventListener('resize', resize); resize(); draw();
+	</script>
+</body>
+</html>
